@@ -5,13 +5,6 @@ const nextConfig = {
       { protocol: "https", hostname: "**" },
       { protocol: "http", hostname: "**" },
     ],
-    domains: [
-      "picsum.photos",
-      "img.youtube.com",
-      "i.ytimg.com",
-      "lh3.googleusercontent.com",
-      "via.placeholder.com",
-    ],
   },
 };
 

@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 
 interface MongooseCache {
   conn: typeof mongoose | null;
-  promise: Promise<typeof mongoose> | null;
+  promise: Promise<typeof mongoose | null> | null;
 }
 
 declare global {
@@ -15,16 +15,12 @@ if (!global.mongooseCache) {
   global.mongooseCache = cache;
 }
 
-async function dbConnect() {
+async function dbConnect(): Promise<typeof mongoose | null> {
   const MONGODB_URI = process.env.MONGODB_URI;
 
   if (!MONGODB_URI) {
     console.warn("⚠️ MONGODB_URI is not defined in environment variables.");
-    // In build phase, return null or avoid throwing top level exception
-    if (process.env.NODE_ENV === "production" && typeof window === "undefined" && !process.env.MONGODB_URI) {
-      throw new Error("❌ MONGODB_URI environment variable is required at runtime.");
-    }
-    throw new Error("❌ Please define MONGODB_URI in environment variables.");
+    return null;
   }
 
   if (cache.conn) {
@@ -37,10 +33,16 @@ async function dbConnect() {
       serverSelectionTimeoutMS: 5000,
     };
 
-    cache.promise = mongoose.connect(MONGODB_URI, opts).then((mongooseInstance) => {
-      console.log("✅ MongoDB connected successfully");
-      return mongooseInstance;
-    });
+    cache.promise = mongoose
+      .connect(MONGODB_URI, opts)
+      .then((mongooseInstance) => {
+        console.log("✅ MongoDB connected successfully");
+        return mongooseInstance;
+      })
+      .catch((err) => {
+        console.error("❌ MongoDB connection error:", err);
+        return null;
+      });
   }
 
   try {
@@ -48,7 +50,7 @@ async function dbConnect() {
   } catch (e) {
     cache.promise = null;
     console.error("❌ MongoDB connection failed:", e);
-    throw e;
+    return null;
   }
 
   return cache.conn;

@@ -5,6 +5,8 @@ import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import MainLayoutWrapper from "@/components/layout/MainLayoutWrapper";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title:       { default: "Musify", template: "%s · Musify" },
   description: "Your music, everywhere.",
@@ -15,7 +17,12 @@ export default async function MainLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const session = await getServerSession(authOptions);
+  let session = null;
+  try {
+    session = await getServerSession(authOptions);
+  } catch (err) {
+    console.error("Layout getServerSession error:", err);
+  }
 
   if (!session) {
     redirect("/login");

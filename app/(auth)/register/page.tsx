@@ -41,6 +41,7 @@ export default function RegisterPage() {
     }
 
     setLoading(true);
+    setError("");
     try {
       const res = await fetch("/api/auth/register", {
         method: "POST",
@@ -48,7 +49,15 @@ export default function RegisterPage() {
         body: JSON.stringify({ name: form.name, email: form.email, password: form.password }),
       });
 
-      // Attempt immediate sign-in regardless of database setup status
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({ message: "" }));
+        if (res.status === 409) {
+          setLoading(false);
+          setError(data.message || "Email already registered. Try logging in.");
+          return;
+        }
+      }
+
       await signIn("credentials", {
         redirect: false,
         email: form.email,

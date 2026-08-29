@@ -71,7 +71,7 @@ async function saveOfflineSong(song: Song, blob?: Blob): Promise<Song> {
     const store = tx.objectStore(STORE_NAME);
     const itemToSave = {
       ...song,
-      audioBlob: blob || null,
+      audioBlob: blob || undefined,
       isOffline: true,
       createdAt: song.createdAt || new Date().toISOString(),
     };

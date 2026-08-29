@@ -16,38 +16,37 @@ declare global {
   var mongooseCache: MongooseCache | undefined;
 }
 
-let cached = global.mongooseCache;
-
-if (!cached) {
-  cached = global.mongooseCache = { conn: null, promise: null };
+const cache: MongooseCache = global.mongooseCache || { conn: null, promise: null };
+if (!global.mongooseCache) {
+  global.mongooseCache = cache;
 }
 
 async function dbConnect() {
-  if (cached.conn) {
-    return cached.conn;
+  if (cache.conn) {
+    return cache.conn;
   }
 
-  if (!cached.promise) {
+  if (!cache.promise) {
     const opts = {
-      bufferCommands: false, // Don't buffer if disconnected; fail fast with real error
-      serverSelectionTimeoutMS: 5000, // Timeout after 5s if Atlas is unreachable
+      bufferCommands: false,
+      serverSelectionTimeoutMS: 5000,
     };
 
-    cached.promise = mongoose.connect(MONGODB_URI!, opts).then((mongooseInstance) => {
+    cache.promise = mongoose.connect(MONGODB_URI!, opts).then((mongooseInstance) => {
       console.log("✅ MongoDB connected successfully");
       return mongooseInstance;
     });
   }
 
   try {
-    cached.conn = await cached.promise;
+    cache.conn = await cache.promise;
   } catch (e) {
-    cached.promise = null;
+    cache.promise = null;
     console.error("❌ MongoDB connection failed:", e);
     throw e;
   }
 
-  return cached.conn;
+  return cache.conn;
 }
 
 export default dbConnect;

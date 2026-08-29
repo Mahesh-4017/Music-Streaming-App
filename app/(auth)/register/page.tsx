@@ -395,7 +395,17 @@ export default function RegisterPage() {
           {/* Google Sign Up Button */}
           <button
             type="button"
-            onClick={() => signIn("google", { callbackUrl: "/" })}
+            onClick={async () => {
+              setError("");
+              try {
+                const res = await signIn("google", { callbackUrl: "/" });
+                if (res?.error) {
+                  setError("Google Sign-In is not configured for this app yet. Please register with Email & Password above.");
+                }
+              } catch {
+                setError("Google Sign-In is not configured for this app yet. Please register with Email & Password above.");
+              }
+            }}
             className="
               w-full flex items-center justify-center gap-3 px-4 py-3
               bg-[var(--bg-elevated)] border border-[var(--border)] rounded-2xl

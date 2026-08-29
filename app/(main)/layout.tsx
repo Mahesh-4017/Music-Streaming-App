@@ -8,7 +8,7 @@ import MainLayoutWrapper from "@/components/layout/MainLayoutWrapper";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title:       { default: "Musify", template: "%s · Musify" },
+  title: { default: "Musify", template: "%s · Musify" },
   description: "Your music, everywhere.",
 };
 

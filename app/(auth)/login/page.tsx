@@ -48,7 +48,17 @@ export default function LoginPage() {
 
   const handleGoogle = async () => {
     setGoogleLoading(true);
-    await signIn("google", { callbackUrl: "/" });
+    setError("");
+    try {
+      const res = await signIn("google", { callbackUrl: "/" });
+      if (res?.error) {
+        setError("Google Sign-In is not configured for this app yet. Please log in with Email & Password below.");
+        setGoogleLoading(false);
+      }
+    } catch {
+      setError("Google Sign-In is not configured for this app yet. Please log in with Email & Password below.");
+      setGoogleLoading(false);
+    }
   };
 
   return (

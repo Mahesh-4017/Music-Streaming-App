@@ -49,19 +49,16 @@ const providers: NextAuthOptions["providers"] = [
   }),
 ];
 
-// Add Google Provider if credentials are set in environment
-if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+// Add Google Provider ONLY if real client credentials exist in environment
+if (
+  process.env.GOOGLE_CLIENT_ID &&
+  process.env.GOOGLE_CLIENT_SECRET &&
+  !process.env.GOOGLE_CLIENT_ID.includes("placeholder")
+) {
   providers.push(
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    })
-  );
-} else {
-  providers.push(
-    GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID || "google_client_id_placeholder",
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET || "google_client_secret_placeholder",
     })
   );
 }

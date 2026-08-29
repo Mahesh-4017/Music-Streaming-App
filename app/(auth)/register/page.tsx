@@ -410,12 +410,14 @@ export default function RegisterPage() {
             onClick={async () => {
               setError("");
               try {
-                const res = await signIn("google", { callbackUrl: "/" });
-                if (res?.error) {
-                  setError("Google Sign-In is not configured for this app yet. Please register with Email & Password above.");
+                const res = await signIn("google", { callbackUrl: "/", redirect: false });
+                if (res?.error || !res?.url) {
+                  setError("Google Sign-In is not configured in Netlify environment variables yet. Please register using Email & Password above.");
+                } else {
+                  window.location.href = res.url;
                 }
               } catch {
-                setError("Google Sign-In is not configured for this app yet. Please register with Email & Password above.");
+                setError("Google Sign-In is not configured in Netlify environment variables yet. Please register using Email & Password above.");
               }
             }}
             className="

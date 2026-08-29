@@ -12,6 +12,7 @@
     "@distube/ytdl-core": "^4.16.12",
     "bcryptjs": "^3.0.3",
     "clsx": "^2.1.1",
+    "firebase": "^12.18.0",
     "lucide-react": "^1.7.0",
     "mongodb": "^7.1.1",
     "mongoose": "^9.3.3",

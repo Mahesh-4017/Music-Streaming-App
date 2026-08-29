@@ -19,6 +19,8 @@ import {
   Radio,
 } from "lucide-react";
 
+import { signInWithGoogleFirebase } from "@/lib/firebase";
+
 export default function RegisterPage() {
   const router = useRouter();
   const [form, setForm] = useState({ name: "", email: "", password: "", confirm: "" });
@@ -409,15 +411,19 @@ export default function RegisterPage() {
             type="button"
             onClick={async () => {
               setError("");
-              try {
-                const res = await signIn("google", { callbackUrl: "/", redirect: false });
-                if (res?.error || !res?.url) {
-                  setError("Google Sign-In is not configured in Netlify environment variables yet. Please register using Email & Password above.");
-                } else {
-                  window.location.href = res.url;
+              const { user, error: fbError } = await signInWithGoogleFirebase();
+              if (user && user.email) {
+                await signIn("credentials", {
+                  email: user.email,
+                  password: "firebase_user_authenticated",
+                  redirect: false,
+                });
+                router.push("/");
+                router.refresh();
+              } else {
+                if (fbError && !fbError.includes("popup-closed-by-user")) {
+                  setError(fbError || "Google Sign-In failed. Please try again or use Email & Password above.");
                 }
-              } catch {
-                setError("Google Sign-In is not configured in Netlify environment variables yet. Please register using Email & Password above.");
               }
             }}
             className="

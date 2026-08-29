@@ -1,8 +1,4 @@
 // hooks/useAudio.ts
-// ─── THE REAL AUDIO ENGINE ────────────────────────────────────────────────────
-// This hook owns the single <audio> element for the whole app.
-// Mount it ONCE in (main)/layout.tsx — never anywhere else.
-
 "use client";
 
 import { useEffect, useRef, useCallback } from "react";
@@ -12,69 +8,62 @@ export function useAudio() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const {
-    currentSong,
+    currentTrack,
     isPlaying,
     volume,
     isMuted,
     repeatMode,
-    play,
     pause,
     next,
     seek,
   } = usePlayerStore();
 
-  // ── 1. Create audio element once ─────────────────────────────────────────
   useEffect(() => {
-    if (audioRef.current) return;           // already created
+    if (audioRef.current) return;
     audioRef.current = new Audio();
     audioRef.current.preload = "metadata";
   }, []);
 
-  // ── 2. Load new song whenever currentSong changes ────────────────────────
   useEffect(() => {
     const audio = audioRef.current;
-    if (!audio || !currentSong) return;
+    if (!audio || !currentTrack) return;
 
-    if (!currentSong.audioUrl) {
-      console.warn("[useAudio] audioUrl is empty for:", currentSong.title);
+    if (!currentTrack.audioUrl) {
+      console.warn("[useAudio] audioUrl is empty for:", currentTrack.title);
       return;
     }
 
-    audio.src = currentSong.audioUrl;
+    audio.src = currentTrack.audioUrl;
     audio.load();
 
     if (isPlaying) {
-      audio.play().catch(err => {
+      audio.play().catch((err) => {
         console.error("[useAudio] play() failed:", err);
         pause();
       });
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentSong?.id]);               // only re-run when song ID changes
+  }, [currentTrack?.id]);
 
-  // ── 3. Play / pause in sync with store ───────────────────────────────────
   useEffect(() => {
     const audio = audioRef.current;
-    if (!audio || !currentSong?.audioUrl) return;
+    if (!audio || !currentTrack?.audioUrl) return;
 
     if (isPlaying) {
-      audio.play().catch(err => {
+      audio.play().catch((err) => {
         console.error("[useAudio] play() failed:", err);
         pause();
       });
     } else {
       audio.pause();
     }
-  }, [isPlaying, currentSong?.audioUrl, pause]);
+  }, [isPlaying, currentTrack?.audioUrl, pause]);
 
-  // ── 4. Volume & mute ─────────────────────────────────────────────────────
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
     audio.volume = isMuted ? 0 : volume;
   }, [volume, isMuted]);
 
-  // ── 5. Sync time → store (throttled via requestAnimationFrame) ───────────
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
@@ -83,13 +72,9 @@ export function useAudio() {
 
     const tick = () => {
       if (!audio.paused) {
-        // Update store progress every animation frame
         usePlayerStore.setState({
           currentTime: audio.currentTime,
-          duration:    audio.duration || 0,
-          progress:    audio.duration
-            ? (audio.currentTime / audio.duration) * 100
-            : 0,
+          duration: audio.duration || 0,
         });
       }
       rafId = requestAnimationFrame(tick);
@@ -99,7 +84,6 @@ export function useAudio() {
     return () => cancelAnimationFrame(rafId);
   }, []);
 
-  // ── 6. Native events → store ─────────────────────────────────────────────
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
@@ -122,32 +106,37 @@ export function useAudio() {
       pause();
     };
 
-    audio.addEventListener("ended",           onEnded);
-    audio.addEventListener("loadedmetadata",  onLoadedMetadata);
-    audio.addEventListener("error",           onError);
+    audio.addEventListener("ended", onEnded);
+    audio.addEventListener("loadedmetadata", onLoadedMetadata);
+    audio.addEventListener("error", onError);
 
     return () => {
-      audio.removeEventListener("ended",           onEnded);
-      audio.removeEventListener("loadedmetadata",  onLoadedMetadata);
-      audio.removeEventListener("error",           onError);
+      audio.removeEventListener("ended", onEnded);
+      audio.removeEventListener("loadedmetadata", onLoadedMetadata);
+      audio.removeEventListener("error", onError);
     };
   }, [repeatMode, next, pause]);
 
-  // ── 7. Expose seek so Player UI can call it ───────────────────────────────
-  const seekTo = useCallback((seconds: number) => {
-    const audio = audioRef.current;
-    if (!audio) return;
-    audio.currentTime = seconds;
-    seek(seconds);
-  }, [seek]);
+  const seekTo = useCallback(
+    (seconds: number) => {
+      const audio = audioRef.current;
+      if (!audio) return;
+      audio.currentTime = seconds;
+      seek(seconds);
+    },
+    [seek]
+  );
 
-  const seekToPercent = useCallback((percent: number) => {
-    const audio = audioRef.current;
-    if (!audio || !audio.duration) return;
-    const seconds = (percent / 100) * audio.duration;
-    audio.currentTime = seconds;
-    seek(seconds);
-  }, [seek]);
+  const seekToPercent = useCallback(
+    (percent: number) => {
+      const audio = audioRef.current;
+      if (!audio || !audio.duration) return;
+      const seconds = (percent / 100) * audio.duration;
+      audio.currentTime = seconds;
+      seek(seconds);
+    },
+    [seek]
+  );
 
   return { audioRef, seekTo, seekToPercent };
 }

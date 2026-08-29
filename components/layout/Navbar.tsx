@@ -4,6 +4,9 @@ import { useState, useRef, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
+import { useSession, signOut } from "next-auth/react";
+import { useUIStore } from "@/store/uiStore";
+import { usePlayerStore } from "@/store/playerStore";
 import {
   ChevronLeft,
   ChevronRight,
@@ -19,7 +22,27 @@ import {
   Library,
   Heart,
   Upload,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from "lucide-react";
+
+function QueueToggleBtn() {
+  const { currentTrack, isQueueOpen, toggleQueue } = usePlayerStore();
+  if (!currentTrack) return null;
+
+  return (
+    <button
+      onClick={toggleQueue}
+      className={`btn-icon relative hover:scale-105 transition-all ${
+        isQueueOpen ? "text-[var(--brand)] border-[var(--brand)] bg-[var(--brand)]/10" : ""
+      }`}
+      title={isQueueOpen ? "Close player & queue sidebar" : "Open player & queue sidebar"}
+      aria-label="Toggle Queue Sidebar"
+    >
+      <ListMusic size={17} />
+    </button>
+  );
+}
 
 // ─── Greeting ─────────────────────────────────────────────────────────────────
 function getGreeting() {
@@ -152,6 +175,14 @@ function SearchDropdown({
 
 // ─── User Menu ────────────────────────────────────────────────────────────────
 function UserMenu() {
+  let session = null;
+  try {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    const res = useSession();
+    session = res?.data ?? null;
+  } catch {
+    session = null;
+  }
   const [open, setOpen] = useState(false);
   const ref             = useRef<HTMLDivElement>(null);
   const router          = useRouter();
@@ -164,9 +195,8 @@ function UserMenu() {
     return () => document.removeEventListener("mousedown", fn);
   }, []);
 
-  // TODO: replace with real session / auth store
-  const user     = { name: "Ahmed Khan", email: "ahmed@example.com" };
-  const initials = user.name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
+  const user     = session?.user ?? { name: "Ahmed Khan", email: "ahmed@example.com" };
+  const initials = (user.name || "User").split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
 
   const menuItems = [
     { icon: User,      label: "Profile",   href: "/profile"  },
@@ -174,10 +204,9 @@ function UserMenu() {
     { icon: Settings,  label: "Settings",  href: "/settings" },
   ];
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     setOpen(false);
-    // TODO: call your actual signOut() here, e.g. signOut({ callbackUrl: "/login" })
-    router.push("/login");
+    await signOut({ callbackUrl: "/login" });
   };
 
   return (
@@ -205,7 +234,7 @@ function UserMenu() {
           className="text-xs font-medium hidden xl:block max-w-[80px] truncate"
           style={{ color: "var(--text-secondary)" }}
         >
-          {user.name.split(" ")[0]}
+          {(user.name || "User").split(" ")[0]}
         </span>
         <ChevronRight
           size={12}
@@ -277,10 +306,47 @@ function UserMenu() {
 }
 
 // ─── Notifications Bell ───────────────────────────────────────────────────────
+interface NotificationItem {
+  id: string;
+  title: string;
+  message: string;
+  time: string;
+  read: boolean;
+  type: "release" | "system" | "liked";
+  avatar?: string;
+}
+
 function NotificationsBell() {
-  const [open,  setOpen]  = useState(false);
-  const [count]           = useState(3); // TODO: from API
-  const ref               = useRef<HTMLDivElement>(null);
+  const [open, setOpen] = useState(false);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([
+    {
+      id: "1",
+      title: "New Track Release 🎵",
+      message: "The Weeknd dropped 'Dancing in the Flames'!",
+      time: "10m ago",
+      read: false,
+      type: "release",
+      avatar: "/assets/images/default-song.png",
+    },
+    {
+      id: "2",
+      title: "Playlist Recommendation 🎧",
+      message: "Based on your recent listening: Top Chill Hits 2026",
+      time: "2h ago",
+      read: false,
+      type: "system",
+    },
+    {
+      id: "3",
+      title: "Musify Engine Update 🚀",
+      message: "Lossless YouTube & MP3 playback engine is now active.",
+      time: "1d ago",
+      read: false,
+      type: "system",
+    },
+  ]);
+
+  const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const fn = (e: MouseEvent) => {
@@ -290,25 +356,44 @@ function NotificationsBell() {
     return () => document.removeEventListener("mousedown", fn);
   }, []);
 
+  const unreadCount = notifications.filter((n) => !n.read).length;
+
+  const markAllRead = () => {
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+  };
+
+  const markSingleRead = (id: string) => {
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, read: true } : n))
+    );
+  };
+
+  const removeNotification = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setNotifications((prev) => prev.filter((n) => n.id !== id));
+  };
+
   return (
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="btn-icon relative"
+        className="btn-icon relative hover:scale-105 transition-transform"
         aria-label="Notifications"
       >
-        <Bell size={16} />
-        {count > 0 && (
+        <Bell size={17} />
+        {unreadCount > 0 && (
           <span
             className="
               absolute -top-0.5 -right-0.5
               w-4 h-4 rounded-full
               text-[9px] font-bold text-white
               flex items-center justify-center
+              shadow-[0_0_8px_rgba(42,82,190,0.6)]
+              animate-pulse
             "
             style={{ background: "var(--brand)" }}
           >
-            {count > 9 ? "9+" : count}
+            {unreadCount}
           </span>
         )}
       </button>
@@ -316,29 +401,108 @@ function NotificationsBell() {
       {open && (
         <div
           className="
-            absolute right-0 top-11 w-72
-            bg-[var(--bg-surface)] border border-[var(--border)]
+            absolute right-0 top-11 w-80 sm:w-96
+            bg-[var(--bg-surface)]/95 backdrop-blur-2xl
+            border border-[var(--border)]
             rounded-[var(--radius-lg)] shadow-[var(--shadow-lg)]
-            overflow-hidden animate-fade-in-scale
+            overflow-hidden animate-fade-in-scale z-50
           "
-          style={{ zIndex: "var(--z-modal)" as string }}
         >
+          {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)]">
-            <span className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-              Notifications
-            </span>
-            <button
-              onClick={() => setOpen(false)}
-              className="transition-colors hover:opacity-70"
-              style={{ color: "var(--text-muted)" }}
-              aria-label="Close"
-            >
-              <X size={14} />
-            </button>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-bold text-[var(--text-primary)]">
+                Notifications
+              </span>
+              {unreadCount > 0 && (
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[var(--brand)]/15 text-[var(--brand)] border border-[var(--brand)]/30">
+                  {unreadCount} new
+                </span>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2">
+              {unreadCount > 0 && (
+                <button
+                  onClick={markAllRead}
+                  className="text-[11px] font-semibold text-[var(--brand)] hover:underline"
+                >
+                  Mark read
+                </button>
+              )}
+              <button
+                onClick={() => setOpen(false)}
+                className="p-1 rounded-lg hover:bg-white/5 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
+                aria-label="Close"
+              >
+                <X size={14} />
+              </button>
+            </div>
           </div>
-          <div className="py-10 text-center text-sm" style={{ color: "var(--text-muted)" }}>
-            🔔 You&apos;re all caught up!
+
+          {/* List */}
+          <div className="max-h-[340px] overflow-y-auto divide-y divide-[var(--border)]">
+            {notifications.length === 0 ? (
+              <div className="py-12 text-center text-xs text-[var(--text-muted)] space-y-1">
+                <p className="text-xl">🔔</p>
+                <p className="font-semibold">You&apos;re all caught up!</p>
+                <p className="text-[11px]">No new notifications at this time.</p>
+              </div>
+            ) : (
+              notifications.map((n) => (
+                <div
+                  key={n.id}
+                  onClick={() => markSingleRead(n.id)}
+                  className={`
+                    flex items-start gap-3 p-3.5 cursor-pointer text-left transition-colors relative group
+                    ${!n.read ? "bg-[var(--brand)]/5 hover:bg-[var(--brand)]/10" : "hover:bg-[var(--bg-elevated)]"}
+                  `}
+                >
+                  {/* Unread indicator dot */}
+                  {!n.read && (
+                    <span className="w-2 h-2 rounded-full bg-[var(--brand)] shrink-0 mt-1.5 shadow-[0_0_6px_rgba(124,111,224,0.8)]" />
+                  )}
+
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-1">
+                      <p className="text-xs font-bold text-[var(--text-primary)] truncate">
+                        {n.title}
+                      </p>
+                      <span className="text-[10px] text-[var(--text-muted)] shrink-0">
+                        {n.time}
+                      </span>
+                    </div>
+                    <p className="text-xs text-[var(--text-secondary)] mt-0.5 line-clamp-2 leading-relaxed">
+                      {n.message}
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={(e) => removeNotification(n.id, e)}
+                    className="opacity-0 group-hover:opacity-100 p-1 text-[var(--text-muted)] hover:text-red-400 transition-all shrink-0"
+                    title="Remove notification"
+                  >
+                    <X size={13} />
+                  </button>
+                </div>
+              ))
+            )}
           </div>
+
+          {/* Footer */}
+          {notifications.length > 0 && (
+            <div className="px-4 py-2 border-t border-[var(--border)] bg-[var(--bg-base)] flex items-center justify-between">
+              <button
+                onClick={() => setNotifications([])}
+                className="text-[11px] text-[var(--text-muted)] hover:text-red-400 transition-colors"
+              >
+                Clear all
+              </button>
+              <span className="text-[10px] text-[var(--text-muted)]">
+                Musify Alerts
+              </span>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -373,7 +537,7 @@ function MobileNav() {
       }}
     >
       {MOBILE_NAV.map(({ href, icon: Icon, label }) => {
-        const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
+        const active = href === "/" ? pathname === "/" : (pathname ? pathname.startsWith(href) : false);
         return (
           <Link
             key={href}
@@ -402,6 +566,7 @@ function MobileNav() {
 export default function Navbar() {
   const router  = useRouter();
   const greeting = getGreeting();
+  const { isSidebarCollapsed, toggleSidebar } = useUIStore();
 
   const [query,   setQuery]   = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
@@ -544,8 +709,16 @@ export default function Navbar() {
           zIndex: "var(--z-navbar)" as string,
         }}
       >
-        {/* ── Back / Forward ── */}
+        {/* ── Back / Forward / Sidebar Toggle ── */}
         <div className="flex items-center gap-1 flex-shrink-0">
+          <button
+            onClick={toggleSidebar}
+            className="btn-icon w-8 h-8 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+            title={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            aria-label="Toggle sidebar"
+          >
+            {isSidebarCollapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
+          </button>
           <button
             onClick={() => router.back()}
             className="btn-icon w-8 h-8"
@@ -623,6 +796,7 @@ export default function Navbar() {
 
         {/* ── Right actions ── */}
         <div className="ml-auto flex items-center gap-2 flex-shrink-0">
+          <QueueToggleBtn />
           <NotificationsBell />
           <UserMenu />
         </div>

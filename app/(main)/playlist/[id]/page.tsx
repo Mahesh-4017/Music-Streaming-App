@@ -4,7 +4,6 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { Play, Shuffle, Heart, Clock, MoreHorizontal, Music2, Pencil } from "lucide-react";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
 interface PlaylistSong {
   id:        string;
   title:     string;
@@ -17,42 +16,81 @@ interface PlaylistSong {
   addedBy:   string;
 }
 
-async function getPlaylist(id: string) {
-  const res = await fetch(`http://localhost:3000/api/playlists/${id}`, {
-    cache: "no-store",
-  });
+const MOCK_PLAYLIST = {
+  id: "pl-1",
+  title: "My Favorite Hits",
+  description: "A curated collection of top tracks and saved YouTube music.",
+  owner: "Musify User",
+  isPublic: true,
+  isOwner: true,
+  thumbnail: "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=400",
+  followers: "128",
+  songs: [
+    {
+      id: "s-1",
+      title: "Blinding Lights",
+      artist: "The Weeknd",
+      artistId: "art-1",
+      album: "After Hours",
+      albumId: "alb-1",
+      thumbnail: "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=200",
+      duration: 200,
+      addedBy: "User",
+    },
+    {
+      id: "s-2",
+      title: "Midnight City Lights",
+      artist: "Dua Lipa",
+      artistId: "art-2",
+      album: "Future Nostalgia",
+      albumId: "alb-2",
+      thumbnail: "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=200",
+      duration: 184,
+      addedBy: "User",
+    },
+  ] as PlaylistSong[],
+};
 
-  const data = await res.json();
-  return data.data;
+async function getPlaylist(id: string) {
+  try {
+    const res = await fetch(`http://localhost:3000/api/playlists/${id}`, {
+      cache: "no-store",
+    });
+    if (!res.ok) return MOCK_PLAYLIST;
+    const data = await res.json();
+    return data.data || MOCK_PLAYLIST;
+  } catch {
+    return MOCK_PLAYLIST;
+  }
 }
 
-export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
-  const pl = await getPlaylist(params.id);
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const resolvedParams = await params;
+  const pl = await getPlaylist(resolvedParams.id);
   return { title: pl.title, description: pl.description };
 }
 
 function fmt(secs: number) {
-  return `${Math.floor(secs/60)}:${String(secs%60).padStart(2,"0")}`;
+  return `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, "0")}`;
 }
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
-export default async function PlaylistPage({ params }: { params: { id: string } }) {
-  const pl = await getPlaylist(params.id);
-  const totalMins = Math.floor(pl.songs.reduce((s, t) => s + t.duration, 0) / 60);
+export default async function PlaylistPage({ params }: { params: Promise<{ id: string }> }) {
+  const resolvedParams = await params;
+  const pl = await getPlaylist(resolvedParams.id);
+  const totalMins = Math.floor((pl.songs || []).reduce((s: number, t: PlaylistSong) => s + (t.duration || 0), 0) / 60);
 
   return (
-    <div className="animate-fade-in">
-
+    <div className="animate-fade-in pb-16">
       {/* ── Hero ── */}
       <div
         className="px-6 sm:px-8 pt-10 pb-8 border-b border-[var(--border)]"
-        style={{ background:"linear-gradient(to bottom, rgba(124,111,224,.12), transparent)" }}
+        style={{ background: "linear-gradient(to bottom, rgba(124,111,224,.12), transparent)" }}
       >
         <div className="flex flex-col sm:flex-row items-start sm:items-end gap-6">
 
           {/* Cover */}
           <div className="relative w-40 h-40 sm:w-52 sm:h-52 flex-shrink-0 rounded-[var(--radius-xl)] overflow-hidden shadow-[var(--shadow-lg)] group">
-            <Image src={pl.thumbnail} alt={pl.title} fill className="object-cover" priority />
+            <Image src={pl.thumbnail || "/assets/images/default-song.png"} alt={pl.title} fill className="object-cover" priority />
             {pl.isOwner && (
               <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                 <Pencil size={24} className="text-white" />
@@ -75,8 +113,6 @@ export default async function PlaylistPage({ params }: { params: { id: string } 
               <span className="text-[var(--text-muted)]">{pl.songs.length} songs</span>
               <span className="text-[var(--text-muted)]">·</span>
               <span className="text-[var(--text-muted)]">{totalMins} min</span>
-              <span className="text-[var(--text-muted)]">·</span>
-              <span className="text-[var(--text-muted)]">{pl.followers} followers</span>
             </div>
             <div className="flex items-center gap-3 mt-5">
               <button className="
@@ -101,7 +137,7 @@ export default async function PlaylistPage({ params }: { params: { id: string } 
       <div className="container py-6">
         <div
           className="grid gap-3 px-3 py-2 mb-1 border-b border-[var(--border)] text-[var(--text-muted)]"
-          style={{ gridTemplateColumns:"40px 1fr 1fr auto" }}
+          style={{ gridTemplateColumns: "40px 1fr 1fr auto" }}
         >
           <span className="text-xs">#</span>
           <span className="text-xs">Title</span>
@@ -110,18 +146,18 @@ export default async function PlaylistPage({ params }: { params: { id: string } 
         </div>
 
         <div className="space-y-0.5 stagger">
-          {pl.songs.map((song, i) => (
+          {(pl.songs || []).map((song: PlaylistSong, i: number) => (
             <div
-              key={song.id}
+              key={song.id || i}
               className="song-row group cursor-pointer"
-              style={{ display:"grid", gridTemplateColumns:"40px 1fr 1fr auto", gap:"12px", alignItems:"center", padding:"8px 12px", borderRadius:"var(--radius-md)" }}
+              style={{ display: "grid", gridTemplateColumns: "40px 1fr 1fr auto", gap: "12px", alignItems: "center", padding: "8px 12px", borderRadius: "var(--radius-md)" }}
             >
               <div className="flex items-center justify-center">
-                <span className="text-sm text-[var(--text-muted)] group-hover:hidden">{i+1}</span>
+                <span className="text-sm text-[var(--text-muted)] group-hover:hidden">{i + 1}</span>
                 <Play size={14} className="hidden group-hover:block text-[var(--text-primary)]" />
               </div>
               <div className="flex items-center gap-3 min-w-0">
-                <Image src={song.thumbnail} alt={song.title} width={40} height={40}
+                <Image src={song.thumbnail || "/assets/images/default-song.png"} alt={song.title} width={40} height={40}
                   className="w-10 h-10 rounded-[var(--radius-md)] object-cover flex-shrink-0" />
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-[var(--text-primary)] truncate">{song.title}</p>
@@ -136,11 +172,11 @@ export default async function PlaylistPage({ params }: { params: { id: string } 
                 {song.album}
               </Link>
               <div className="flex items-center gap-2 justify-end">
-                <button className="btn-icon w-7 h-7 border-none opacity-0 group-hover:opacity-100" onClick={e=>e.stopPropagation()}>
+                <button className="btn-icon w-7 h-7 border-none opacity-0 group-hover:opacity-100">
                   <Heart size={13} />
                 </button>
                 <span className="text-xs text-[var(--text-muted)] w-9 text-right">{fmt(song.duration)}</span>
-                <button className="btn-icon w-7 h-7 border-none opacity-0 group-hover:opacity-100" onClick={e=>e.stopPropagation()}>
+                <button className="btn-icon w-7 h-7 border-none opacity-0 group-hover:opacity-100">
                   <MoreHorizontal size={13} />
                 </button>
               </div>

@@ -41,11 +41,11 @@ export const authOptions: NextAuthOptions = {
       if (account?.provider === "google") {
         await dbConnect();
         const existing = await User.findOne({ email: user.email });
-        if (!existing) {
+        if (!existing && user.email) {
           await User.create({
-            name:   user.name,
+            name:   user.name || "User",
             email:  user.email,
-            avatar: user.image,
+            avatar: user.image || "",
           });
         }
       }

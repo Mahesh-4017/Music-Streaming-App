@@ -1,79 +1,93 @@
+// components/providers/PlayerProvider.tsx
 "use client";
 
 import { useEffect, useRef } from "react";
 import { usePlayerStore } from "@/store/playerStore";
 
+/**
+ * Drop this ONCE in your root layout:
+ *   <PlayerProvider />
+ *   <MobilePlayer />
+ *
+ * It owns the single <audio> element for the entire app.
+ * YouTube tracks are handled by MobilePlayer's iframe — this only drives
+ * audio/video URL tracks.
+ */
 export default function PlayerProvider() {
-  // ✅ FIX 2: initialise Audio() inside useEffect — safe for SSR/strict mode
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  const { currentSong, isPlaying, volume, isMuted, next, repeatMode } =
-    usePlayerStore();
+  const {
+    currentTrack,
+    isPlaying,
+    volume,
+    isMuted,
+    repeatMode,
+    next,
+  } = usePlayerStore();
 
-  // ✅ FIX 2: create Audio element once, client-side only
+  // ── Create audio element once (client only, SSR safe) ────────────────────
   useEffect(() => {
-    if (!audioRef.current) {
-      audioRef.current = new Audio();
-    }
+    audioRef.current = new Audio();
   }, []);
 
-  // 🎵 Load song — ✅ FIX 4: isPlaying added to deps to avoid stale closure
+  // ── Load new track & autoplay ─────────────────────────────────────────────
   useEffect(() => {
     const audio = audioRef.current;
-    if (!audio || !currentSong) return;
+    if (!audio || !currentTrack) return;
 
-    audio.src = currentSong.audioUrl;
+    // YouTube is handled by MobilePlayer iframe — skip
+    if (currentTrack.type === "youtube") return;
+
+    // Resolve the actual audio src (supports both store shapes)
+    const src = currentTrack.audioUrl ?? currentTrack.url ?? "";
+    if (!src) return;
+
+    audio.src = src;
     audio.load();
+    audio.play().catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentTrack?.id]);   // only re-run when the track ID changes
 
-    if (isPlaying) {
-      audio.play().catch(() => {});
-    }
-  }, [currentSong]); // intentionally only on song change; isPlaying handled below
-
-  // ▶️ Play / Pause
+  // ── Play / Pause ──────────────────────────────────────────────────────────
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
-
-    if (isPlaying) {
-      audio.play().catch(() => {});
-    } else {
-      audio.pause();
-    }
+    if (isPlaying) audio.play().catch(() => {});
+    else           audio.pause();
   }, [isPlaying]);
 
-  // 🔊 Volume
+  // ── Volume / mute ─────────────────────────────────────────────────────────
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
     audio.volume = isMuted ? 0 : volume;
   }, [volume, isMuted]);
 
-  // ⏱ Sync time → store
+  // ── Sync timeupdate → store (progress bar) ────────────────────────────────
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
 
-    const update = () => {
-      const duration = audio.duration || 0;
-      const currentTime = audio.currentTime;
+    const onTimeUpdate = () => {
+      const d = audio.duration || 0;
+      const t = audio.currentTime;
       usePlayerStore.setState({
-        currentTime,
-        duration,
-        progress: duration ? (currentTime / duration) * 100 : 0,
+        currentTime: t,
+        duration:    d,
+        progress:    d ? (t / d) * 100 : 0,
       });
     };
 
-    audio.addEventListener("timeupdate", update);
-    return () => audio.removeEventListener("timeupdate", update);
+    audio.addEventListener("timeupdate", onTimeUpdate);
+    return () => audio.removeEventListener("timeupdate", onTimeUpdate);
   }, []);
 
-  // ⏭ Song ended
+  // ── Song ended → next / repeat ────────────────────────────────────────────
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
 
-    const handleEnd = () => {
+    const onEnded = () => {
       if (repeatMode === "one") {
         audio.currentTime = 0;
         audio.play().catch(() => {});
@@ -82,25 +96,24 @@ export default function PlayerProvider() {
       }
     };
 
-    audio.addEventListener("ended", handleEnd);
-    return () => audio.removeEventListener("ended", handleEnd);
+    audio.addEventListener("ended", onEnded);
+    return () => audio.removeEventListener("ended", onEnded);
   }, [next, repeatMode]);
 
-  // 🎯 Store seek → audio  ✅ FIX 5: safe subscribe without subscribeWithSelector
+  // ── External seek (store.seek() → audio element) ─────────────────────────
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
 
-    // ✅ FIX 5: plain subscribe — works without middleware
     const unsub = usePlayerStore.subscribe((state) => {
-      const time = state.currentTime;
-      if (Math.abs(audio.currentTime - time) > 1) {
-        audio.currentTime = time;
+      // Only jump if the diff is meaningful (> 1s) to avoid feedback loop
+      if (Math.abs(audio.currentTime - state.currentTime) > 1) {
+        audio.currentTime = state.currentTime;
       }
     });
 
     return () => unsub();
-  }, []); 
+  }, []);
 
-  return null;
+  return null; // renders nothing — pure audio engine
 }

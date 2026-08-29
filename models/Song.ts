@@ -5,35 +5,42 @@ export interface ISong extends Document {
   artist: string;
   album?: string;
   genre?: string;
-  duration?: number;      // seconds
-  audioUrl: string;       // path or cloud URL
+  duration?: number;       // seconds
+  audioUrl: string;        // MP3 URL or YouTube link
   thumbnailUrl?: string;
-  uploader: mongoose.Types.ObjectId;
-  plays: number;
-  likes: number;
-  isPublic: boolean;
+  uploaderEmail?: string;  // User's Gmail / email identifier
+  uploader?: mongoose.Types.ObjectId;
+  type?: "youtube" | "audio" | "video";
+  plays?: number;
+  likes?: number;
+  isPublic?: boolean;
   createdAt: Date;
 }
 
 const SongSchema = new Schema<ISong>(
   {
-    title:        { type: String, required: true, trim: true },
-    artist:       { type: String, required: true, trim: true },
-    album:        { type: String, trim: true },
-    genre:        { type: String, trim: true },
-    duration:     { type: Number },
-    audioUrl:     { type: String, required: true },
-    thumbnailUrl: { type: String },
-    uploader:     { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
-    plays:        { type: Number, default: 0 },
-    likes:        { type: Number, default: 0 },
-    isPublic:     { type: Boolean, default: true },
+    title:         { type: String, required: true, trim: true },
+    artist:        { type: String, required: true, trim: true, default: "Unknown Artist" },
+    album:         { type: String, trim: true },
+    genre:         { type: String, trim: true },
+    duration:      { type: Number, default: 0 },
+    audioUrl:      { type: String, required: true },
+    thumbnailUrl:  { type: String },
+    uploaderEmail: { type: String, index: true },
+    uploader:      { type: Schema.Types.ObjectId, ref: "User", required: false, index: true },
+    type:          { type: String, default: "youtube" },
+    plays:         { type: Number, default: 0 },
+    likes:         { type: Number, default: 0 },
+    isPublic:      { type: Boolean, default: true },
   },
   { timestamps: true }
 );
 
-const Song: Model<ISong> =
-  mongoose.models.Song ?? mongoose.model<ISong>("Song", SongSchema);
+// Clear cached model to ensure schema updates apply in dev hot-reloading
+if (mongoose.models && mongoose.models.Song) {
+  delete (mongoose.models as Record<string, unknown>).Song;
+}
 
-  
+const Song: Model<ISong> = mongoose.model<ISong>("Song", SongSchema);
+
 export default Song;

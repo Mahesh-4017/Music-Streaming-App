@@ -1,22 +1,14 @@
-// app/layout.tsx  —  ROOT layout (wraps everything)
+// app/layout.tsx  —  ROOT layout with Josefin Sans & Tuscan Sunset theme
 import type { Metadata, Viewport } from "next";
-import { Syne, DM_Sans } from "next/font/google";
+import { Josefin_Sans } from "next/font/google";
 import "./globals.css";
 import SessionWrapper from "@/components/player/SessionWrapper";
 
-// ─── Fonts ────────────────────────────────────────────────────────────────────
-const syne = Syne({
-  variable: "--font-display",
+// ─── Font Configuration ───────────────────────────────────────────────────────
+const josefinSans = Josefin_Sans({
+  variable: "--font-josefin",
   subsets:  ["latin"],
-  weight:   ["400", "500", "600", "700", "800"],
-  display:  "swap",
-});
-
-const dmSans = DM_Sans({
-  variable: "--font-body",
-  subsets:  ["latin"],
-  weight:   ["300", "400", "500"],
-  style:    ["normal", "italic"],
+  weight:   ["300", "400", "500", "600", "700"],
   display:  "swap",
 });
 
@@ -26,7 +18,7 @@ export const metadata: Metadata = {
     default:  "Musify",
     template: "%s · Musify",
   },
-  description: "Your music, everywhere. Stream millions of songs.",
+  description: "Your music, everywhere. Stream millions of songs in Tuscan Sunset aesthetic.",
   keywords:    ["music", "streaming", "songs", "playlist", "artist"],
   authors:     [{ name: "Musify" }],
   icons: {
@@ -42,14 +34,14 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor:    "#0A0A0F",
+  themeColor:    "#171213",
   colorScheme:   "dark",
   width:         "device-width",
   initialScale:  1,
-  maximumScale:  1,          // prevent zoom on iOS input focus
+  maximumScale:  1,
 };
 
-// ─── Layout ───────────────────────────────────────────────────────────────────
+// ─── Root Layout ──────────────────────────────────────────────────────────────
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
@@ -57,18 +49,14 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={`
-        ${syne.variable}
-        ${dmSans.variable}
-        h-full
-      `}
+      className={`${josefinSans.variable} h-full`}
     >
       <body
         className="
           min-h-full
           bg-[var(--bg-base)]
           text-[var(--text-primary)]
-          font-[family-name:var(--font-body)]
+          font-[family-name:var(--font-josefin)]
           antialiased
           overflow-x-hidden
         "
@@ -78,5 +66,3 @@ export default function RootLayout({
     </html>
   );
 }
-
-

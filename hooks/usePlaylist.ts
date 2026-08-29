@@ -25,26 +25,27 @@ function detectType(url: string): TrackType {
   return "invalid";
 }
 
-// ✅ Extract title
+// ✅ Extract title cleanly
 function extractTitle(url: string): string {
   try {
     const u = new URL(url);
     const host = u.hostname.replace("www.", "");
 
     if (host.includes("youtube") || host.includes("youtu.be")) {
-      const v =
-        u.searchParams.get("v") || u.pathname.split("/").pop();
-      return `YouTube — ${v ?? "video"}`;
+      const v = u.searchParams.get("v") || u.pathname.split("/").pop();
+      return `YouTube Track (${v ?? "Audio"})`;
     }
 
-    const filename = u.pathname
-      .split("/")
-      .pop()
-      ?.replace(/\.[^.]+$/, "");
+    const filename = u.pathname.split("/").pop()?.replace(/\.[^.]+$/, "");
+    if (filename) {
+      let decoded = decodeURIComponent(filename);
+      decoded = decoded.replace(/[-_]+/g, " ").replace(/\s+/g, " ").trim();
+      return decoded.replace(/\b\w/g, (c) => c.toUpperCase());
+    }
 
-    return decodeURIComponent(filename ?? host) || host;
+    return host;
   } catch {
-    return "Unknown Track";
+    return "Offline Song";
   }
 }
 

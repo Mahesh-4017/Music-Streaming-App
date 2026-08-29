@@ -1,16 +1,17 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/db";
 import Playlist from "@/models/Playlist";
 
 export async function GET(
-  req: Request,
-  { params }: { params: { id: string } }
+  req: NextRequest,
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await context.params;
     await dbConnect();
 
-    const playlist = await Playlist.findById(params.id)
-      .populate("songs") // 🔥 IMPORTANT (fetch song data)
+    const playlist = await Playlist.findById(id)
+      .populate("songs")
       .lean();
 
     if (!playlist) {
@@ -19,6 +20,9 @@ export async function GET(
 
     return NextResponse.json({ success: true, data: playlist });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json(
+      { error: error?.message || "An unknown error occurred" },
+      { status: 500 }
+    );
   }
 }

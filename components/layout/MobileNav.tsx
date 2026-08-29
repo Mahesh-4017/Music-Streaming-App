@@ -34,7 +34,7 @@ export default function MobileNav() {
         {TABS.map(({ href, icon: Icon, label }) => {
           // Match exact for home, prefix for others
           const isActive =
-            href === "/" ? pathname === "/" : pathname.startsWith(href);
+            href === "/" ? pathname === "/" : (pathname ? pathname.startsWith(href) : false);
 
           return (
             <Link

@@ -6,14 +6,18 @@ import User from "@/models/User";
 export async function POST(req: NextRequest) {
   try {
     const { name, email, password } = await req.json();
-    console.log("hello gys");
-    console.log(name, email, password );
+
     if (!name || !email || !password) {
       return NextResponse.json({ message: "All fields are required." }, { status: 400 });
-      console.log("hello gys");
     }
 
-    await dbConnect();
+    const conn = await dbConnect();
+    if (!conn) {
+      return NextResponse.json(
+        { message: "Database is not connected. Please add MONGODB_URI in Netlify Environment Variables." },
+        { status: 503 }
+      );
+    }
 
     const existing = await User.findOne({ email });
     if (existing) {
@@ -23,9 +27,12 @@ export async function POST(req: NextRequest) {
     const hashed = await bcrypt.hash(password, 12);
     await User.create({ name, email, password: hashed });
 
-    return NextResponse.json({ message: "Account created." }, { status: 201 });
+    return NextResponse.json({ message: "Account created successfully." }, { status: 201 });
   } catch (err) {
-    console.error(err);
-    return NextResponse.json({ message: "Server error." }, { status: 500 });
+    console.error("Registration Error:", err);
+    return NextResponse.json(
+      { message: "Unable to complete registration. Please check database connection or try Guest mode." },
+      { status: 500 }
+    );
   }
 }
